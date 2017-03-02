@@ -62,8 +62,7 @@ module spine.canvas {
 					let regionAttachment = <RegionAttachment>attachment;
 					vertices = regionAttachment.updateWorldVertices(slot, false);
 					region = <TextureAtlasRegion>regionAttachment.region;
-					image = (<CanvasTexture>(region).texture).getImage();
-
+					image = (<CanvasTexture>region.texture).getImage();
 				} else continue;
 
 				let att = <RegionAttachment>attachment;
