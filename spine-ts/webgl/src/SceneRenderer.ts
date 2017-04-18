@@ -30,7 +30,7 @@
 
 module spine.webgl {
 	export class SceneRenderer implements Disposable {
-		gl: WebGLRenderingContext;
+		context: ManagedWebGLRenderingContext;
 		canvas: HTMLCanvasElement;
 		camera: OrthoCamera;
 		batcher: PolygonBatcher;
@@ -49,16 +49,16 @@ module spine.webgl {
 		private QUAD_TRIANGLES = [0, 1, 2, 2, 3, 0];
 		private WHITE = new Color(1, 1, 1, 1);
 
-		constructor (canvas: HTMLCanvasElement, gl: WebGLRenderingContext) {
+		constructor(canvas: HTMLCanvasElement, context: ManagedWebGLRenderingContext | WebGLRenderingContext) {
 			this.canvas = canvas;
-			this.gl = gl;
+			this.context = context instanceof ManagedWebGLRenderingContext ? context : new ManagedWebGLRenderingContext(context);
 			this.camera = new OrthoCamera(canvas.width, canvas.height);
-			this.batcherShader = Shader.newColoredTextured(gl);
-			this.batcher = new PolygonBatcher(gl);
-			this.shapesShader = Shader.newColored(gl);
-			this.shapes = new ShapeRenderer(gl); 
-			this.skeletonRenderer = new SkeletonRenderer(gl);
-			this.skeletonDebugRenderer = new SkeletonDebugRenderer(gl);
+			this.batcherShader = Shader.newColoredTextured(this.context);
+			this.batcher = new PolygonBatcher(this.context);
+			this.shapesShader = Shader.newColored(this.context);
+			this.shapes = new ShapeRenderer(this.context);
+			this.skeletonRenderer = new SkeletonRenderer(this.context);
+			this.skeletonDebugRenderer = new SkeletonDebugRenderer(this.context);
 		}
 
 		begin () {
@@ -316,7 +316,7 @@ module spine.webgl {
 				canvas.width = w;
 				canvas.height = h;
 			}
-			this.gl.viewport(0, 0, canvas.width, canvas.height);
+			this.context.gl.viewport(0, 0, canvas.width, canvas.height);
 
 			if (resizeMode === ResizeMode.Stretch) {
 				// nothing to do, we simply apply the viewport size of the camera

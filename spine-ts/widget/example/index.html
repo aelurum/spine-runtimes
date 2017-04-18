@@ -71,7 +71,21 @@ data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAABACAYAAADS1n9/AAAFLElEQVR42u
 </script>
 
 <script>
-new spine.SpineWidget("spine-widget", {
+function supportsWebGL() {
+    try {
+        var canvas = document.createElement("canvas");
+        var ctx = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        return ctx != null;
+    } catch (e) {
+        return false;
+    }
+}
+
+if (!supportsWebGL()) {
+    alert('WebGL is unavailable.');
+}
+
+spineWidget = new spine.SpineWidget("spine-widget", {
 	json: "assets/spineboy.json",
 	atlas: "assets/spineboy.atlas",
 	animation: "run",
@@ -92,7 +106,7 @@ json = document.getElementById("json").innerHTML;
 atlas = document.getElementById("atlas").innerHTML;
 atlasPageContent = document.getElementById("atlasPage").innerHTML;
 
-new spine.SpineWidget("spine-widget-inline", {
+spineWidgetInline = new spine.SpineWidget("spine-widget-inline", {
 	jsonContent: json,
 	atlasContent: atlas,
 	atlasPages: ["spine-logo.png"],
