@@ -8,13 +8,14 @@
 </style>
 <body>
 <div id="label" style="position: absolute; top: 0; left: 0; color: #fff; z-index: 10"></div>
-<canvas id="canvas"></canvas>
+<canvas id="canvas" style="background: red;"></canvas>
 </body>
 <script>
 
-var FILE = "spineboy";
+var FILE = "raptor";
+var ANIMATION = "walk";
 var NUM_SKELETONS = 1;
-var SCALE = 0.6;
+var SCALE = 0.5;
 
 var canvas, context, gl, renderer, input, assetManager;
 var skeletons = [];
@@ -24,17 +25,17 @@ var label = document.getElementById("label");
 function init() {
 	canvas = document.getElementById("canvas");
 	canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
-    context = new spine.webgl.ManagedWebGLRenderingContext(canvas);
-    gl = context.gl;
+	context = new spine.webgl.ManagedWebGLRenderingContext(canvas, { alpha: false });
+	gl = context.gl;
 
 	renderer = new spine.webgl.SceneRenderer(canvas, context);
-    renderer.skeletonDebugRenderer.drawBones = false;
-    renderer.skeletonDebugRenderer.drawMeshTriangles = false;
-    renderer.skeletonDebugRenderer.drawMeshHull = false;
-    renderer.skeletonDebugRenderer.drawRegionAttachments = false;
+	renderer.skeletonDebugRenderer.drawBones = false;
+	renderer.skeletonDebugRenderer.drawMeshTriangles = false;
+	renderer.skeletonDebugRenderer.drawMeshHull = false;
+	renderer.skeletonDebugRenderer.drawRegionAttachments = false;
 	renderer.skeletonDebugRenderer.drawBoundingBoxes = false;
 
-    assetManager = new spine.webgl.AssetManager(context, "assets/");
+	assetManager = new spine.webgl.AssetManager(context, "assets/");
 	var textureLoader = function(img) { return new spine.webgl.GLTexture(gl, img); };
 	input = new spine.webgl.Input(canvas);
 
@@ -67,10 +68,10 @@ function load() {
 			stateData.defaultMix = mixDuration;
 
 			state.multipleMixing = false;
-			state.setAnimation(0, "idle", true);
+			state.setAnimation(0, ANIMATION, true);
 			state.apply(skeleton);
-			skeleton.x = Math.random() * 200 - Math.random() * 200;
-			skeleton.y = Math.random() * 200 - Math.random() * 200;
+			skeleton.x = 0;
+			skeleton.y = 0;
 			skeleton.updateWorldTransform();
 			skeletons.push({ skeleton: skeleton, state: state });
 		}
@@ -94,14 +95,14 @@ function render() {
 		skeleton.updateWorldTransform();
 	}
 
-	gl.clearColor(0, 0, 0, 1);
+	gl.clearColor(0.2, 0.2, 0.2, 1);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
 	renderer.resize(spine.webgl.ResizeMode.Fit);
 	renderer.begin();
 	for (var i = 0; i < skeletons.length; i++) {
 		var skeleton = skeletons[i].skeleton;
-		renderer.drawSkeleton(skeleton);
+		renderer.drawSkeleton(skeleton, false);
 	}
 	renderer.end();
 
