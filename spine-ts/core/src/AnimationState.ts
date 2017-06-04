@@ -116,16 +116,18 @@ module spine {
 			entry.mixTime += delta * from.timeScale;
 		}
 
-		apply (skeleton: Skeleton) {
+		apply(skeleton: Skeleton): boolean {
 			if (skeleton == null) throw new Error("skeleton cannot be null.");
 			if (this.animationsChanged) this._animationsChanged();
 
 			let events = this.events;
 			let tracks = this.tracks;
+			let applied = false;
 
 			for (let i = 0, n = tracks.length; i < n; i++) {
 				let current = tracks[i];
 				if (current == null || current.delay > 0) continue;
+				applied = true;
 
 				// Apply mixing from entries first.
 				let mix = current.alpha;
@@ -163,6 +165,7 @@ module spine {
 			}
 
 			this.queue.drain();
+			return applied;
 		}
 
 		applyMixingFrom (entry: TrackEntry, skeleton: Skeleton) {
