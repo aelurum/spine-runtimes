@@ -36,11 +36,9 @@ function init() {
 	renderer.skeletonDebugRenderer.drawBoundingBoxes = false;
 
 	assetManager = new spine.webgl.AssetManager(context, "assets/");
-	var textureLoader = function(img) { return new spine.webgl.GLTexture(gl, img); };
 	input = new spine.webgl.Input(canvas);
 
-	assetManager.loadTexture(FILE + ".png");
-	assetManager.loadText(FILE + ".atlas");
+	assetManager.loadTextureAtlas(FILE.replace("-pro", "").replace("-oss", "") + ".atlas");
 	assetManager.loadText(FILE + ".json");
 
 	timeKeeper = new spine.TimeKeeper();
@@ -50,9 +48,7 @@ function init() {
 function load() {
 	timeKeeper.update();
 	if (assetManager.isLoadingComplete()) {
-		var atlas = new spine.TextureAtlas(assetManager.get(FILE + ".atlas"), function(path) {
-			return assetManager.get(path);
-		});
+        var atlas = assetManager.get(FILE.replace("-pro", "").replace("-oss", "") + ".atlas");
 		var atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 		var skeletonJson = new spine.SkeletonJson(atlasLoader);
 		skeletonJson.scale = SCALE;
