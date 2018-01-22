@@ -19,12 +19,17 @@ var assetManager;
 var canvas;
 var lastFrameTime = Date.now() / 1000;
 
+var baseUrl = "assets/";
+var skeletonFile = "raptor.json";
+var atlasFile = skeletonFile.replace("-pro", "").replace("-ess", "").replace(".json", ".atlas");
+var animation = "walk";
+
 function init () {
 	// create the THREE.JS camera, scene and renderer (WebGL)
-	var width = window.innerWidth, height = window.innerHeight;	
+	var width = window.innerWidth, height = window.innerHeight;
 	camera = new THREE.PerspectiveCamera(75, width / height, 1, 3000);
 	camera.position.y = 100;
-	camera.position.z = 400;	
+	camera.position.z = 400;
 	scene = new THREE.Scene();
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize(width, height);
@@ -32,55 +37,41 @@ function init () {
 	canvas = renderer.domElement;
 
 	// load the assets required to display the Raptor model
-	assetManager = new spine.threejs.AssetManager();
-	assetManager.loadText("assets/raptor.json");
-	assetManager.loadText("assets/raptor.atlas");
-	assetManager.loadTexture("assets/raptor.png");
+	assetManager = new spine.threejs.AssetManager(baseUrl);
+	assetManager.loadText(skeletonFile);
+	assetManager.loadTextureAtlas(atlasFile);
 
 	requestAnimationFrame(load);
 }
 
 function load (name, scale) {
-	if (assetManager.isLoadingComplete()) {	
+	if (assetManager.isLoadingComplete()) {
 		// Add a box to the scene to which we attach the skeleton mesh
-		geometry = new THREE.BoxGeometry(200, 200, 200);
-		material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+		geometry = new THREE.BoxGeometry(150, 150, 150);
+		material = new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true});
 		mesh = new THREE.Mesh(geometry, material);
 		scene.add(mesh);
 
-		// Load the texture atlas using name.atlas and name.png from the AssetManager.
-		// The function passed to TextureAtlas is used to resolve relative paths.
-		atlas = new spine.TextureAtlas(assetManager.get("assets/raptor.atlas"), function(path) {
-			return assetManager.get("assets/" + path);		
-		});
-		var skeletonData = loadSkeleton("raptor", 0.4);
+		atlas = assetManager.get(atlasFile);
+
+		// Create a AtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
+		atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+
+		// Create a SkeletonJson instance for parsing the .json file.
+		var skeletonJson = new spine.SkeletonJson(atlasLoader);
+
+		// Set the scale to apply during parsing, parse the file, and create a new skeleton.
+		skeletonJson.scale = 0.3;
+		var skeletonData = skeletonJson.readSkeletonData(assetManager.get(skeletonFile));
 
 		// Create a SkeletonMesh from the data and attach it to the scene
 		skeletonMesh = new spine.threejs.SkeletonMesh(skeletonData);
-		skeletonMesh.state.setAnimation(0, "walk", true);
+		skeletonMesh.premultipliedAlpha = false;
+		skeletonMesh.state.setAnimation(0, animation, true);
 		mesh.add(skeletonMesh);
 
 		requestAnimationFrame(render);
 	} else requestAnimationFrame(load);
-}
-
-function loadSkeleton (name, scale) {	
-	// Load the texture atlas using name.atlas and name.png from the AssetManager.
-	// The function passed to TextureAtlas is used to resolve relative paths.
-	atlas = new spine.TextureAtlas(assetManager.get("assets/" + name + ".atlas"), function(path) {
-		return assetManager.get("assets/" + path);		
-	});
-
-	// Create a AtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
-	atlasLoader = new spine.AtlasAttachmentLoader(atlas);
-
-	// Create a SkeletonJson instance for parsing the .json file.
-	var skeletonJson = new spine.SkeletonJson(atlasLoader);
-	
-	// Set the scale to apply during parsing, parse the file, and create a new skeleton.
-	skeletonJson.scale = scale;
-	var skeletonData = skeletonJson.readSkeletonData(assetManager.get("assets/" + name + ".json"));
-	return skeletonData;
 }
 
 var lastTime = Date.now();
@@ -115,9 +106,9 @@ function resize () {
 	}
 
 	camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+	camera.updateProjectionMatrix();
 
-    renderer.setSize(w, h);
+	renderer.setSize(w, h);
 }
 
 (function() {
