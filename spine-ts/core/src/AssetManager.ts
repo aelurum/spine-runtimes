@@ -94,6 +94,31 @@ module spine {
 			});
 		}
 
+		loadData(path: string,
+			success: (path: string, text: string) => void = null,
+			error: (path: string, error: string) => void = null
+		) {
+			path = this.pathPrefix + path;
+			this.toLoad++;
+			let request = new XMLHttpRequest();
+			request.onreadystatechange = () => {
+				if (request.readyState == XMLHttpRequest.DONE) {
+					if (request.status >= 200 && request.status < 300) {
+						this.assets[path] = request.response;
+						if (success) success(path, request.response);
+					} else {
+						this.errors[path] = `Couldn't load text ${path}: status ${request.status}, ${request.response}`;
+						if (error) error(path, `Couldn't load text ${path}: status ${request.status}, ${request.response}`);
+					}
+					this.toLoad--;
+					this.loaded++;
+				}
+			};
+			request.open("GET", path, true);
+			request.responseType = 'arraybuffer';
+			request.send();
+		}
+
 		loadTexture (path: string,
 			success: (path: string, image: HTMLImageElement) => void = null,
 			error: (path: string, error: string) => void = null) {
