@@ -49,6 +49,11 @@ module spine {
 		readByte(): number {
 			return this.buffer[this.offset++];
 		}
+		readSByte(): number {
+			let byte = this.readByte();
+			if (byte > 127) byte -= 256;
+			return byte;
+		}
 		readBool(): boolean {
 			return this.readByte() != 0;
 		}
@@ -209,7 +214,7 @@ module spine {
 				if (data.target == null) throw new Error("IK target bone not found: " + targetIndex);
 
 				data.mix = reader.readFloat();
-				data.bendDirection = reader.readBool() ? 1 : -1;
+				data.bendDirection = reader.readSByte();
 
 				skeletonData.ikConstraints.push(data);
 			}
@@ -366,7 +371,7 @@ module spine {
 					let box = this.attachmentLoader.newBoundingBoxAttachment(skin, name);
 					if (box == null) return null;
 					let vertexCount = reader.readVarInt();
-					this.readVertices(reader, box, vertexCount << 1);
+					this.readVertices(reader, box, vertexCount);
 					if (nonessential) {
 						let color: Array<number> = reader.readColor();
 						if (color != null) box.color.set(color[0], color[1], color[2], color[3]);
@@ -388,16 +393,16 @@ module spine {
 						uvs.push(reader.readFloat());
 						uvs.push(reader.readFloat());
 					}
-					mesh.regionUVs = uvs;
 					let triangles = [];
 					for (let i = 0, triangleCount = reader.readVarInt(); i < triangleCount; i++) {
 						triangles.push(reader.readShort());
 					}
 					mesh.triangles = triangles;
+					mesh.regionUVs = uvs;
 
 					this.readVertices(reader, mesh, uvs.length / 2);
 					mesh.updateUVs();
-					mesh.hullLength = reader.readVarInt();
+					mesh.hullLength = reader.readVarInt() * 2;
 					if (nonessential) {
 						let edges = [];
 						for (let i = 0, edgeCount = reader.readVarInt(); i < edgeCount; i++) {
@@ -637,7 +642,7 @@ module spine {
 				let frameIndex = 0;
 				for (let i = 0; i < frameCount; i++) {
 					timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat(),
-						reader.readBool() ? 1 : -1);
+						reader.readSByte());
 					if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
 					frameIndex++;
 				}
