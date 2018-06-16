@@ -15,11 +15,11 @@ declare module spine {
 	enum MixPose {
 		setup = 0,
 		current = 1,
-		currentLayered = 2,
+		currentLayered = 2
 	}
 	enum MixDirection {
 		in = 0,
-		out = 1,
+		out = 1
 	}
 	enum TimelineType {
 		rotate = 0,
@@ -36,7 +36,7 @@ declare module spine {
 		pathConstraintPosition = 11,
 		pathConstraintSpacing = 12,
 		pathConstraintMix = 13,
-		twoColor = 14,
+		twoColor = 14
 	}
 	abstract class CurveTimeline implements Timeline {
 		static LINEAR: number;
@@ -334,7 +334,7 @@ declare module spine {
 		end = 2,
 		dispose = 3,
 		complete = 4,
-		event = 5,
+		event = 5
 	}
 	interface AnimationStateListener2 {
 		start(entry: TrackEntry): void;
@@ -373,9 +373,10 @@ declare module spine {
 		private toLoad;
 		private loaded;
 		constructor(textureLoader: (image: HTMLImageElement) => any, pathPrefix?: string);
-		private static downloadText(url, success, error);
-		private static downloadBinary(url, success, error);
+		private static downloadText;
+		private static downloadBinary;
 		loadText(path: string, success?: (path: string, text: string) => void, error?: (path: string, error: string) => void): void;
+		loadData(path: string, success?: (path: string, text: string) => void, error?: (path: string, error: string) => void): void;
 		loadTexture(path: string, success?: (path: string, image: HTMLImageElement) => void, error?: (path: string, error: string) => void): void;
 		loadTextureData(path: string, data: string, success?: (path: string, image: HTMLImageElement) => void, error?: (path: string, error: string) => void): void;
 		loadTextureAtlas(path: string, success?: (path: string, atlas: TextureAtlas) => void, error?: (path: string, error: string) => void): void;
@@ -407,7 +408,7 @@ declare module spine {
 		Normal = 0,
 		Additive = 1,
 		Multiply = 2,
-		Screen = 3,
+		Screen = 3
 	}
 }
 declare module spine {
@@ -476,7 +477,7 @@ declare module spine {
 		OnlyTranslation = 1,
 		NoRotationOrReflection = 2,
 		NoScale = 3,
-		NoScaleOrReflection = 4,
+		NoScaleOrReflection = 4
 	}
 }
 declare module spine {
@@ -576,17 +577,17 @@ declare module spine {
 	}
 	enum PositionMode {
 		Fixed = 0,
-		Percent = 1,
+		Percent = 1
 	}
 	enum SpacingMode {
 		Length = 0,
 		Fixed = 1,
-		Percent = 2,
+		Percent = 2
 	}
 	enum RotateMode {
 		Tangent = 0,
 		Chain = 1,
-		ChainScale = 2,
+		ChainScale = 2
 	}
 }
 declare module spine {
@@ -597,12 +598,12 @@ declare module spine {
 		private rawAssets;
 		private errors;
 		constructor(pathPrefix?: string);
-		private queueAsset(clientId, textureLoader, path);
+		private queueAsset;
 		loadText(clientId: string, path: string): void;
 		loadJson(clientId: string, path: string): void;
 		loadTexture(clientId: string, textureLoader: (image: HTMLImageElement) => any, path: string): void;
 		get(clientId: string, path: string): any;
-		private updateClientAssets(clientAssets);
+		private updateClientAssets;
 		isLoadingComplete(clientId: string): boolean;
 		dispose(): void;
 		hasErrors(): boolean;
@@ -655,6 +656,40 @@ declare module spine {
 		findPathConstraint(constraintName: string): PathConstraint;
 		getBounds(offset: Vector2, size: Vector2, temp: Array<number>): void;
 		update(delta: number): void;
+	}
+}
+declare module spine {
+	class BinaryReader {
+		offset: number;
+		size: number;
+		buffer: Uint8Array;
+		floatBuf: ArrayBuffer;
+		floatBufIn: Uint8Array;
+		floatBufOut: Float32Array;
+		doubleBuf: ArrayBuffer;
+		doubleBufIn: Uint8Array;
+		doubleBufOut: Float64Array;
+		constructor(data: ArrayBuffer);
+		readByte(): number;
+		readSByte(): number;
+		readBool(): boolean;
+		readShort(): number;
+		readInt(): number;
+		readVarInt(optimizePositive?: boolean): number;
+		readFloat(): number;
+		readString(): string;
+		readColor(): Array<number>;
+	}
+	class SkeletonBinary {
+		attachmentLoader: AttachmentLoader;
+		scale: number;
+		private linkedMeshes;
+		constructor(attachmentLoader: AttachmentLoader);
+		readSkeletonData(buf: ArrayBuffer): SkeletonData;
+		readAttachment(reader: BinaryReader, skin: Skin, slotIndex: number, placeholderName: string, skeletonData: SkeletonData, nonessential: boolean): Attachment;
+		readVertices(reader: BinaryReader, attachment: VertexAttachment, verticesLength: number): void;
+		readAnimation(reader: BinaryReader, name: string, skeletonData: SkeletonData): void;
+		readCurve(reader: BinaryReader, timeline: CurveTimeline, frameIndex: number): void;
 	}
 }
 declare module spine {
@@ -806,12 +841,12 @@ declare module spine {
 		MipMapNearestNearest = 9984,
 		MipMapLinearNearest = 9985,
 		MipMapNearestLinear = 9986,
-		MipMapLinearLinear = 9987,
+		MipMapLinearLinear = 9987
 	}
 	enum TextureWrap {
 		MirroredRepeat = 33648,
 		ClampToEdge = 33071,
-		Repeat = 10497,
+		Repeat = 10497
 	}
 	class TextureRegion {
 		renderObject: any;
@@ -838,7 +873,7 @@ declare module spine {
 		pages: TextureAtlasPage[];
 		regions: TextureAtlasRegion[];
 		constructor(atlasText: string, textureLoader: (path: string) => any);
-		private load(atlasText, textureLoader);
+		private load;
 		findRegion(name: string): TextureAtlasRegion;
 		dispose(): void;
 	}
@@ -914,9 +949,9 @@ declare module spine {
 		private polygonIndicesPool;
 		triangulate(verticesArray: ArrayLike<number>): Array<number>;
 		decompose(verticesArray: Array<number>, triangles: Array<number>): Array<Array<number>>;
-		private static isConcave(index, vertexCount, vertices, indices);
-		private static positiveArea(p1x, p1y, p2x, p2y, p3x, p3y);
-		private static winding(p1x, p1y, p2x, p2y, p3x, p3y);
+		private static isConcave;
+		private static positiveArea;
+		private static winding;
 	}
 }
 declare module spine {
@@ -1089,6 +1124,7 @@ declare module spine {
 		LinkedMesh = 3,
 		Path = 4,
 		Point = 5,
+		Clipping = 6
 	}
 }
 declare module spine {
@@ -1273,9 +1309,9 @@ declare module spine.threejs {
 		private tempColor;
 		constructor(skeletonData: SkeletonData);
 		update(deltaTime: number): void;
-		private clearBatches();
-		private nextBatch();
-		private updateGeometry();
+		private clearBatches;
+		private nextBatch;
+		private updateGeometry;
 	}
 }
 declare module spine.threejs {
