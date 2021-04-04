@@ -457,9 +457,9 @@ module spine {
 				case AttachmentType.Point: {
 					let point = this.attachmentLoader.newPointAttachment(skin, name);
 					if (point == null) return null;
+					point.rotation = reader.readFloat();
 					point.x = reader.readFloat() * scale;
 					point.y = reader.readFloat() * scale;
-					point.rotation = reader.readFloat();
 
 					if (nonessential) {
 						let color = reader.readColor();
