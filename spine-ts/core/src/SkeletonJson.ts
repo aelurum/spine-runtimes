@@ -384,7 +384,7 @@ module spine {
 							timelines.push(timeline);
 							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * ColorTimeline.ENTRIES]);
 
-						} else if (timelineName = "attachment") {
+						} else if (timelineName == "attachment") {
 							let timeline = new AttachmentTimeline(timelineMap.length);
 							timeline.slotIndex = slotIndex;
 
