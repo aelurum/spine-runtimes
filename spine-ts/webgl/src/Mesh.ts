@@ -128,7 +128,7 @@ module spine.webgl {
 					this.verticesBuffer = gl.createBuffer();
 				}
 				gl.bindBuffer(gl.ARRAY_BUFFER, this.verticesBuffer);
-				gl.bufferData(gl.ARRAY_BUFFER, this.vertices.subarray(0, this.verticesLength), gl.STATIC_DRAW);
+				gl.bufferData(gl.ARRAY_BUFFER, this.vertices.subarray(0, this.verticesLength), gl.DYNAMIC_DRAW);
 				this.dirtyVertices = false;
 			}
 
@@ -137,7 +137,7 @@ module spine.webgl {
 					this.indicesBuffer = gl.createBuffer();
 				}
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indicesBuffer);
-				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices.subarray(0, this.indicesLength), gl.STATIC_DRAW);
+				gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices.subarray(0, this.indicesLength), gl.DYNAMIC_DRAW);
 				this.dirtyIndices = false;
 			}
 		}
