@@ -34,7 +34,7 @@ module spine.webgl {
 
 		premultipliedAlpha = false;
 
-		constructor(context: ManagedWebGLRenderingContext) {}
+		constructor(context: ManagedWebGLRenderingContext | WebGLRenderingContext) {}
 
 		draw (batcher: PolygonBatcher, skeleton: Skeleton) {
 			let premultipliedAlpha = this.premultipliedAlpha;
