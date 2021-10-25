@@ -94,6 +94,24 @@ module spine {
 			});
 		}
 
+		loadData(path: string,
+			success: (path: string, respData: Uint8Array) => void = null,
+			error: (path: string, error: string) => void = null) {
+			path = this.pathPrefix + path;
+			this.toLoad++;
+			AssetManager.downloadBinary(path, (data: Uint8Array): void => {
+				this.assets[path] = data;
+				if (success) success(path, data);
+				this.toLoad--;
+				this.loaded++;
+			}, (state: number, respText: string): void => {
+				this.errors[path] = `Couldn't load binary data ${path}: status ${status}, ${respText}`;
+				if (error) error(path, `Couldn't load binary data ${path}: status ${status}, ${respText}`);
+				this.toLoad--;
+				this.loaded++;
+			});
+		}
+
 		loadTexture (path: string,
 			success: (path: string, image: HTMLImageElement) => void = null,
 			error: (path: string, error: string) => void = null) {
