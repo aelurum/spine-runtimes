@@ -90,6 +90,24 @@ module spine {
 		pathConstraintPosition, pathConstraintSpacing, pathConstraintMix
 	}
 
+	export enum SlotTimelineType {
+		attachment,
+		color
+	}
+
+	export enum BoneTimelineType {
+		rotate,
+		translate,
+		scale,
+		shear
+	}
+
+	export enum PathConstraintTimelineType {
+		pathConstraintPosition,
+		pathConstraintSpacing,
+		pathConstraintMix
+	}
+
 	export abstract class CurveTimeline implements Timeline {
 		static LINEAR = 0; static STEPPED = 1; static BEZIER = 2;
 		static BEZIER_SIZE = 10 * 2 - 1;

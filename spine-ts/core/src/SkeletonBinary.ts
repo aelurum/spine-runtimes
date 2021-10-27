@@ -58,20 +58,10 @@ module spine {
 			return this.readByte() != 0;
 		}
 		readShort(): number {
-			let result = this.readByte();
-			result <<= 8;
-			result |= this.readByte();
-			return result;
+			return (this.readByte() << 8) | this.readByte();
 		}
 		readInt(): number {
-			let result = this.readByte();
-			result <<= 8;
-			result |= this.readByte();
-			result <<= 8;
-			result |= this.readByte();
-			result <<= 8;
-			result |= this.readByte();
-			return result;
+			return (this.readByte() << 24) | (this.readByte() << 16) | (this.readByte() << 8) | this.readByte();
 		}
 		readVarInt(optimizePositive: boolean = true): number {
 			let b = this.readByte();
@@ -102,12 +92,56 @@ module spine {
 			this.floatBufIn[0] = this.readByte();
 			return this.floatBufOut[0];
 		}
+		readFloatArray(n: number, scale: number): Float32Array {
+			var array = new Float32Array(n);
+			if (scale == 1) {
+				for (var i = 0; i < n; i++) {
+					array[i] = this.readFloat();
+				}
+			} else {
+				for (var i = 0; i < n; i++) {
+					array[i] = this.readFloat() * scale;
+				}
+			}
+			return array;
+		}
+		readShortArray(): Array<number> {
+			var n = this.readVarInt();
+			var array = new Array(n);
+			for (var i = 0; i < n; i++) {
+				array[i] = this.readShort();
+			}
+			return array;
+		}
 		readString(): string {
-			let length = this.readVarInt();
-			if (length == 0) return null;
-			let strBuf = new Uint8Array(this.buffer.buffer.slice(this.offset, this.offset + length - 1));
-			this.offset += length - 1;
-			return decodeURIComponent(escape(String.fromCharCode.apply(null, strBuf)));
+			let charCount = this.readVarInt();
+			switch (charCount) {
+				case 0:
+					return null;
+				case 1:
+					return "";
+			}
+			charCount--;
+			let chars = "";
+			let b = 0;
+			for (var i = 0; i < charCount;) {
+				b = this.readByte();
+				switch (b >> 4) {
+					case 12:
+					case 13:
+						chars += String.fromCharCode((b & 0x1F) << 6 | this.readByte() & 0x3F);
+						i += 2;
+						break;
+					case 14:
+						chars += String.fromCharCode((b & 0x0F) << 12 | (this.readByte() & 0x3F) << 6 | this.readByte() & 0x3F);
+						i += 3;
+						break;
+					default:
+						chars += String.fromCharCode(b);
+						i++;
+				}
+			}
+			return chars;
 		}
 		readColor(): Array<number> {
 			let color = [
@@ -139,18 +173,18 @@ module spine {
 			let skeletonData = new SkeletonData();
 			let reader = new BinaryReader(buf);
 
-			// Skeleton
+			// Skeleton.
 			skeletonData.hash = reader.readString();
 			skeletonData.version = reader.readString();
 			skeletonData.width = reader.readFloat();
 			skeletonData.height = reader.readFloat();
 			let nonessential = reader.readBool();
 			if (nonessential) {
-				skeletonData.fps = reader.readFloat();
+				skeletonData.fps = reader.readFloat(); //spine ver > 3.4
 				skeletonData.imagesPath = reader.readString();
 			}
 
-			// Bones
+			// Bones.
 			for (let i = 0, boneCount = reader.readVarInt(); i < boneCount; i++) {
 				let boneName = reader.readString();
 
@@ -169,8 +203,8 @@ module spine {
 				data.shearX = reader.readFloat();
 				data.shearY = reader.readFloat();
 				data.length = reader.readFloat() * scale;
-				data.transformMode = reader.readByte();
-				if (nonessential) reader.readColor();
+				data.transformMode = reader.readVarInt();
+				if (nonessential) reader.readColor(); // Skip bone color
 
 				skeletonData.bones.push(data);
 			}
@@ -186,18 +220,12 @@ module spine {
 				let color: Array<number> = reader.readColor();
 				if (color != null) data.color.set(color[0], color[1], color[2], color[3]);
 
-				let dark: Array<number> = reader.readColor();
-				if (dark != null) {
-					data.darkColor = new Color(1, 1, 1, 1);
-					data.darkColor.set(dark[0], dark[1], dark[2], dark[3]);
-				}
-
 				data.attachmentName = reader.readString();
-				data.blendMode = reader.readByte();
+				data.blendMode = reader.readVarInt();
 				skeletonData.slots.push(data);
 			}
 
-			// IK constraints
+			// IK constraints.
 			for (let i = 0, ikCount = reader.readVarInt(); i < ikCount; i++) {
 				let data = new IkConstraintData(reader.readString());
 				data.order = reader.readVarInt();
@@ -222,7 +250,7 @@ module spine {
 			// Transform constraints.
 			for (let i = 0, transformCount = reader.readVarInt(); i < transformCount; i++) {
 				let data = new TransformConstraintData(reader.readString());
-				data.order = reader.readVarInt();
+				data.order = reader.readVarInt(); //spine ver > 3.4
 
 				for (let j = 0, boneCount = reader.readVarInt(); j < boneCount; j++) {
 					let boneIndex = reader.readVarInt();
@@ -235,11 +263,9 @@ module spine {
 				data.target = skeletonData.bones[targetIndex];
 				if (data.target == null) throw new Error("Transform constraint target bone not found: " + targetIndex);
 
-				data.local = reader.readBool();
-				data.relative = reader.readBool();
 				data.offsetRotation = reader.readFloat();
-				data.offsetX = reader.readFloat();
-				data.offsetY = reader.readFloat();
+				data.offsetX = reader.readFloat() * this.scale;
+				data.offsetY = reader.readFloat() * this.scale;
 				data.offsetScaleX = reader.readFloat();
 				data.offsetScaleY = reader.readFloat();
 				data.offsetShearY = reader.readFloat();
@@ -255,7 +281,7 @@ module spine {
 			// Path constraints.
 			for (let i = 0, pathCount = reader.readVarInt(); i < pathCount; i++) {
 				let data = new PathConstraintData(reader.readString());
-				data.order = reader.readVarInt();
+				data.order = reader.readVarInt(); //spine ver > 3.4
 
 				for (let j = 0, boneCount = reader.readVarInt(); j < boneCount; j++) {
 					let boneIndex = reader.readVarInt();
@@ -268,9 +294,9 @@ module spine {
 				data.target = skeletonData.slots[targetIndex];
 				if (data.target == null) throw new Error("Path target slot not found: " + targetIndex);
 
-				data.positionMode = reader.readByte();
-				data.spacingMode = reader.readByte();
-				data.rotateMode = reader.readByte();
+				data.positionMode = reader.readVarInt();
+				data.spacingMode = reader.readVarInt();
+				data.rotateMode = reader.readVarInt();
 				data.offsetRotation = reader.readFloat();
 				data.position = reader.readFloat();
 				if (data.positionMode == PositionMode.Fixed) data.position *= scale;
@@ -307,7 +333,7 @@ module spine {
 				skeletonData.skins.push(skin);
 			}
 
-			// Linked meshes.
+			//Linked meshes.
 			for (let i = 0, n = this.linkedMeshes.length; i < n; i++) {
 				let linkedMesh = this.linkedMeshes[i];
 				let skin = linkedMesh.skin == null ? skeletonData.defaultSkin : skeletonData.findSkin(linkedMesh.skin);
@@ -388,29 +414,18 @@ module spine {
 					let color = reader.readColor();
 					if (color != null) mesh.color.set(color[0], color[1], color[2], color[3]);
 
-					let uvs = [];
-					for (let i = 0, uvCount = reader.readVarInt(); i < uvCount; i++) {
-						uvs.push(reader.readFloat());
-						uvs.push(reader.readFloat());
-					}
-					let triangles = [];
-					for (let i = 0, triangleCount = reader.readVarInt(); i < triangleCount; i++) {
-						triangles.push(reader.readShort());
-					}
-					mesh.triangles = triangles;
-					mesh.regionUVs = uvs;
+					var uvCount = reader.readVarInt();
+					mesh.regionUVs = reader.readFloatArray(uvCount << 1, 1);
+					mesh.triangles = reader.readShortArray();
 
-					this.readVertices(reader, mesh, uvs.length / 2);
-					mesh.updateUVs();
-					mesh.hullLength = reader.readVarInt() * 2;
+					this.readVertices(reader, mesh, uvCount);
+					mesh.hullLength = reader.readVarInt() << 1;
 					if (nonessential) {
-						let edges = [];
-						for (let i = 0, edgeCount = reader.readVarInt(); i < edgeCount; i++) {
-							edges.push(reader.readShort());
-						}
-						let width = reader.readFloat();
-						let height = reader.readFloat();
+						let edges = reader.readShortArray();
+						let width = reader.readFloat() * scale;
+						let height = reader.readFloat() * scale;
 					}
+					mesh.updateUVs();
 					return mesh;
 				}
 				case AttachmentType.LinkedMesh: {
@@ -429,8 +444,8 @@ module spine {
 					mesh.inheritDeform = inheritDeform;
 					this.linkedMeshes.push(new LinkedMesh(mesh, skinName, slotIndex, parent));
 					if (nonessential) {
-						let width = reader.readFloat();
-						let height = reader.readFloat();
+						let width = reader.readFloat() * scale;
+						let height = reader.readFloat() * scale;
 					}
 					return mesh;
 				}
@@ -443,7 +458,7 @@ module spine {
 					let vertexCount = reader.readVarInt();
 					this.readVertices(reader, path, vertexCount);
 
-					let lengths: Array<number> = Utils.newArray(vertexCount / 3, 0);
+					let lengths = new Array(vertexCount / 3);
 					for (let i = 0; i < lengths.length; i++)
 						lengths[i] = reader.readFloat() * scale;
 					path.lengths = lengths;
@@ -454,62 +469,24 @@ module spine {
 					}
 					return path;
 				}
-				case AttachmentType.Point: {
-					let point = this.attachmentLoader.newPointAttachment(skin, name);
-					if (point == null) return null;
-					point.rotation = reader.readFloat();
-					point.x = reader.readFloat() * scale;
-					point.y = reader.readFloat() * scale;
-
-					if (nonessential) {
-						let color = reader.readColor();
-						if (color != null) point.color.set(color[0], color[1], color[2], color[3]);
-					}
-					return point;
-				}
-				case AttachmentType.Clipping: {
-					let clip = this.attachmentLoader.newClippingAttachment(skin, name);
-					if (clip == null) return null;
-
-					let end = reader.readVarInt();
-					let slot = skeletonData.slots[end];
-					if (slot == null) throw new Error("Clipping end slot not found: " + end);
-					clip.endSlot = slot;
-
-					let vertexCount = reader.readVarInt();
-					this.readVertices(reader, clip, vertexCount);
-
-					if (nonessential) {
-						let color = reader.readColor();
-						if (color != null) clip.color.set(color[0], color[1], color[2], color[3]);
-					}
-					return clip;
-				}
+				default:
+					throw new Error("Unsupported AttachmentType: " + type);
 			}
-			return null;
 		}
 
 		readVertices(reader: BinaryReader, attachment: VertexAttachment, verticesLength: number) {
 			let scale = this.scale;
-			attachment.worldVerticesLength = verticesLength * 2;
+			let vertexCount = verticesLength << 1;
+			attachment.worldVerticesLength = vertexCount;
 			let weighted = reader.readBool();
 			if (!weighted) {
-				let vertices = new Array<number>();
-				for (let i = 0; i < verticesLength; i++) {
-					vertices.push(reader.readFloat());
-					vertices.push(reader.readFloat());
-				}
-				let scaledVertices = Utils.toFloatArray(vertices);
-				if (scale != 1) {
-					for (let i = 0, n = vertices.length; i < n; i++)
-						scaledVertices[i] *= scale;
-				}
-				attachment.vertices = scaledVertices;
+				attachment.vertices = reader.readFloatArray(vertexCount, scale);
 				return;
 			}
+
 			let weights = new Array<number>();
 			let bones = new Array<number>();
-			for (let i = 0, n = verticesLength; i < n; i++) {
+			for (var i = 0; i < verticesLength; i++) {
 				let boneCount = reader.readVarInt();
 				bones.push(boneCount);
 				for (let j = 0; j < boneCount; j++) {
@@ -532,56 +509,41 @@ module spine {
 			for (let i = 0, slotCount = reader.readVarInt(); i < slotCount; i++) {
 				let slotIndex = reader.readVarInt();
 				for (let ii = 0, timelineCount = reader.readVarInt(); ii < timelineCount; ii++) {
-					let timelineName = reader.readByte() + 4;
+					let timelineType = reader.readByte();
 					let frameCount = reader.readVarInt();
-					if (timelineName == TimelineType.attachment) {
-						let timeline = new AttachmentTimeline(frameCount);
-						timeline.slotIndex = slotIndex;
+					switch (timelineType) {
+						case SlotTimelineType.attachment: {
+							let timeline = new AttachmentTimeline(frameCount);
+							timeline.slotIndex = slotIndex;
 
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							timeline.setFrame(frameIndex++, reader.readFloat(), reader.readString());
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								timeline.setFrame(frameIndex, reader.readFloat(), reader.readString());
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration, timeline.frames[timeline.getFrameCount() - 1]);
+
+							break;
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration, timeline.frames[timeline.getFrameCount() - 1]);
-					} else if (timelineName == TimelineType.color) {
-						let timeline = new ColorTimeline(frameCount);
-						timeline.slotIndex = slotIndex;
+						case SlotTimelineType.color: {
+							let timeline = new ColorTimeline(frameCount);
+							timeline.slotIndex = slotIndex;
 
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							let time = reader.readFloat();
-							let color = reader.readColor();
-							if (!color) color = [1, 1, 1, 1];
-							timeline.setFrame(frameIndex, time, color[0], color[1], color[2], color[3]);
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								let time = reader.readFloat();
+								let color = reader.readColor();
+								if (!color) color = [1, 1, 1, 1];
+								timeline.setFrame(frameIndex, time, color[0], color[1], color[2], color[3]);
+								if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * ColorTimeline.ENTRIES]);
+
+							break;
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * ColorTimeline.ENTRIES]);
-
-					} else if (timelineName == TimelineType.deform) {
-						let timeline = new TwoColorTimeline(frameCount);
-						timeline.slotIndex = slotIndex;
-
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							let time = reader.readFloat();
-							let light = reader.readColor();
-							let dark = reader.readColor();
-							if (!light) light = [1, 1, 1, 1];
-							if (!dark) dark = [1, 1, 1, 1];
-							timeline.setFrame(frameIndex, time,
-								light[0], light[1], light[2], light[3],
-								dark[0], dark[1], dark[2]);
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
+						default: {
+							throw new Error("Invalid timeline type for a slot: " + timelineType + " (" + slotIndex + ")");
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * TwoColorTimeline.ENTRIES]);
-
-					} else
-						throw new Error("Invalid timeline type for a slot: " + timelineName + " (" + slotIndex + ")");
+					}
 				}
 			}
 
@@ -589,47 +551,52 @@ module spine {
 			for (let i = 0, boneCount = reader.readVarInt(); i < boneCount; i++) {
 				let boneIndex = reader.readVarInt();
 				for (let ii = 0, timelineCount = reader.readVarInt(); ii < timelineCount; ii++) {
-					let timelineName = reader.readByte();
+					let timelineType = reader.readByte();
 					let frameCount = reader.readVarInt();
-					if (timelineName === TimelineType.rotate) {
-						let timeline = new RotateTimeline(frameCount);
-						timeline.boneIndex = boneIndex;
+					switch (timelineType) {
+						case BoneTimelineType.rotate: {
+							let timeline = new RotateTimeline(frameCount);
+							timeline.boneIndex = boneIndex;
 
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat());
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat());
+								if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * RotateTimeline.ENTRIES]);
+
+							break;
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * RotateTimeline.ENTRIES]);
+						case BoneTimelineType.translate:
+						case BoneTimelineType.scale:
+						case BoneTimelineType.shear: {
+							let timeline: TranslateTimeline = null;
+							let timelineScale = 1;
+							if (timelineType === BoneTimelineType.scale)
+								timeline = new ScaleTimeline(frameCount);
+							else if (timelineType === BoneTimelineType.shear)
+								timeline = new ShearTimeline(frameCount);
+							else {
+								timeline = new TranslateTimeline(frameCount);
+								timelineScale = scale;
+							}
+							timeline.boneIndex = boneIndex;
 
-					} else if (timelineName === TimelineType.translate || timelineName === TimelineType.scale || timelineName === TimelineType.shear) {
-						let timeline: TranslateTimeline = null;
-						let timelineScale = 1;
-						if (timelineName === TimelineType.scale)
-							timeline = new ScaleTimeline(frameCount);
-						else if (timelineName === TimelineType.shear)
-							timeline = new ShearTimeline(frameCount);
-						else {
-							timeline = new TranslateTimeline(frameCount);
-							timelineScale = scale;
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								let time = reader.readFloat();
+								let x = reader.readFloat(), y = reader.readFloat();
+								timeline.setFrame(frameIndex, time, x * timelineScale, y * timelineScale);
+								if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * TranslateTimeline.ENTRIES]);
+
+							break;
 						}
-						timeline.boneIndex = boneIndex;
-
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							let time = reader.readFloat();
-							let x = reader.readFloat(), y = reader.readFloat();
-							timeline.setFrame(frameIndex, time, x * timelineScale, y * timelineScale);
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
+						default: {
+							throw new Error("Invalid timeline type for a bone: " + timelineType + " (" + boneIndex + ")");
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * TranslateTimeline.ENTRIES]);
-
-					} else
-						throw new Error("Invalid timeline type for a bone: " + timelineName + " (" + boneIndex + ")");
+					}
 				}
 			}
 
@@ -639,12 +606,10 @@ module spine {
 				let frameCount = reader.readVarInt();
 				let timeline = new IkConstraintTimeline(frameCount);
 				timeline.ikConstraintIndex = ikConstraintIndex;
-				let frameIndex = 0;
-				for (let i = 0; i < frameCount; i++) {
+				for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 					timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat(),
 						reader.readSByte());
 					if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-					frameIndex++;
 				}
 				timelines.push(timeline);
 				duration = Math.max(duration, timeline.frames[(timeline.getFrameCount() - 1) * IkConstraintTimeline.ENTRIES]);
@@ -656,12 +621,10 @@ module spine {
 				let frameCount = reader.readVarInt();
 				let timeline = new TransformConstraintTimeline(frameCount);
 				timeline.transformConstraintIndex = transformConstraintIndex;
-				let frameIndex = 0;
-				for (let i = 0; i < frameCount; i++) {
+				for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 					timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat(),
 						reader.readFloat(), reader.readFloat(), reader.readFloat());
 					if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-					frameIndex++;
 				}
 				timelines.push(timeline);
 				duration = Math.max(duration,
@@ -673,41 +636,45 @@ module spine {
 				let index = reader.readVarInt();
 				let data = skeletonData.pathConstraints[index];
 				for (let ii = 0, nn = reader.readVarInt(); ii < nn; ii++) {
-					let timelineName = reader.readByte() + 11;
+					let timelineType = reader.readByte();
 					let frameCount = reader.readVarInt();
-					if (timelineName === TimelineType.pathConstraintPosition || timelineName === TimelineType.pathConstraintSpacing) {
-						let timeline: PathConstraintPositionTimeline = null;
-						let timelineScale = 1;
-						if (timelineName === TimelineType.pathConstraintSpacing) {
-							timeline = new PathConstraintSpacingTimeline(frameCount);
-							if (data.spacingMode == SpacingMode.Length || data.spacingMode == SpacingMode.Fixed) timelineScale = scale;
-						} else {
-							timeline = new PathConstraintPositionTimeline(frameCount);
-							if (data.positionMode == PositionMode.Fixed) timelineScale = scale;
+					switch (timelineType) {
+						case PathConstraintTimelineType.pathConstraintPosition:
+						case PathConstraintTimelineType.pathConstraintSpacing: {
+							let timeline: PathConstraintPositionTimeline = null;
+							let timelineScale = 1.0;
+							if (timelineType === PathConstraintTimelineType.pathConstraintSpacing) {
+								timeline = new PathConstraintSpacingTimeline(frameCount);
+								if (data.spacingMode == SpacingMode.Length || data.spacingMode == SpacingMode.Fixed) timelineScale = scale;
+							} else {
+								timeline = new PathConstraintPositionTimeline(frameCount);
+								if (data.positionMode == PositionMode.Fixed) timelineScale = scale;
+							}
+							timeline.pathConstraintIndex = index;
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat() * timelineScale);
+								if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration,
+								timeline.frames[(timeline.getFrameCount() - 1) * PathConstraintPositionTimeline.ENTRIES]);
+
+							break;
 						}
-						timeline.pathConstraintIndex = index;
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat() * timelineScale);
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
+						case PathConstraintTimelineType.pathConstraintMix: {
+							let timeline = new PathConstraintMixTimeline(frameCount);
+							timeline.pathConstraintIndex = index;
+							for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
+								timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat(),
+									reader.readFloat());
+								if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
+							}
+							timelines.push(timeline);
+							duration = Math.max(duration,
+								timeline.frames[(timeline.getFrameCount() - 1) * PathConstraintMixTimeline.ENTRIES]);
+
+							break;
 						}
-						timelines.push(timeline);
-						duration = Math.max(duration,
-							timeline.frames[(timeline.getFrameCount() - 1) * PathConstraintPositionTimeline.ENTRIES]);
-					} else if (timelineName === TimelineType.pathConstraintMix) {
-						let timeline = new PathConstraintMixTimeline(frameCount);
-						timeline.pathConstraintIndex = index;
-						let frameIndex = 0;
-						for (let i = 0; i < frameCount; i++) {
-							timeline.setFrame(frameIndex, reader.readFloat(), reader.readFloat(),
-								reader.readFloat());
-							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
-						}
-						timelines.push(timeline);
-						duration = Math.max(duration,
-							timeline.frames[(timeline.getFrameCount() - 1) * PathConstraintMixTimeline.ENTRIES]);
 					}
 				}
 			}
@@ -732,8 +699,7 @@ module spine {
 						timeline.slotIndex = slotIndex;
 						timeline.attachment = attachment;
 
-						let frameIndex = 0;
-						for (let j = 0; j < frameCount; j++) {
+						for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
 							let time = reader.readFloat();
 							let end = reader.readVarInt();
 							let deform: ArrayLike<number>;
@@ -758,7 +724,6 @@ module spine {
 
 							timeline.setFrame(frameIndex, time, deform);
 							if (frameIndex < frameCount - 1) this.readCurve(reader, timeline, frameIndex);
-							frameIndex++;
 						}
 						timelines.push(timeline);
 						duration = Math.max(duration, timeline.frames[timeline.getFrameCount() - 1]);
@@ -771,7 +736,7 @@ module spine {
 			if (drawOrderCount > 0) {
 				let timeline = new DrawOrderTimeline(drawOrderCount);
 				let slotCount = skeletonData.slots.length;
-				for (let i = 0; i<drawOrderCount; i++) {
+				for (let i = 0; i < drawOrderCount; i++) {
 					let time = reader.readFloat();
 					let offsetCount = reader.readVarInt();
 					let drawOrder = Utils.newArray(slotCount, -1);
@@ -779,12 +744,16 @@ module spine {
 					let originalIndex = 0, unchangedIndex = 0;
 					for (let ii = 0; ii < offsetCount; ii++) {
 						let slotIndex = reader.readVarInt();
+						// Collect unchanged items.
 						while (originalIndex != slotIndex)
 							unchanged[unchangedIndex++] = originalIndex++;
+						// Set changed items.
 						drawOrder[originalIndex + reader.readVarInt()] = originalIndex++;
 					}
+					// Collect remaining unchanged items.
 					while (originalIndex < slotCount)
 						unchanged[unchangedIndex++] = originalIndex++;
+					// Fill in unchanged items.
 					for (let ii = slotCount - 1; ii >= 0; ii--)
 						if (drawOrder[ii] == -1) drawOrder[ii] = unchanged[--unchangedIndex];
 					timeline.setFrame(i, time, drawOrder);
@@ -802,7 +771,7 @@ module spine {
 					let eventIndex = reader.readVarInt();
 					let eventData = skeletonData.events[eventIndex];
 					if (eventData == null) throw new Error("Event not found: " + eventIndex);
-					let event = new Event(Utils.toSinglePrecision(time), eventData);
+					let event = new Event(time, eventData);
 					event.intValue = reader.readVarInt(false);
 					event.floatValue = reader.readFloat();
 					event.stringValue = reader.readBool() ? reader.readString() : eventData.stringValue;
@@ -821,16 +790,25 @@ module spine {
 
 		readCurve(reader: BinaryReader, timeline: CurveTimeline, frameIndex: number) {
 			let type = reader.readByte();
-			if (type === CurveTimeline.STEPPED)
-				timeline.setStepped(frameIndex);
-			else if (type === CurveTimeline.BEZIER) {
-				timeline.setCurve(
-					frameIndex,
-					reader.readFloat(),
-					reader.readFloat(),
-					reader.readFloat(),
-					reader.readFloat()
-				);
+			switch (type) {
+				case CurveTimeline.LINEAR: {
+					timeline.setLinear(frameIndex);
+					break;
+				}
+				case CurveTimeline.STEPPED: {
+					timeline.setStepped(frameIndex);
+					break;
+				}
+				case CurveTimeline.BEZIER: {
+					timeline.setCurve(
+						frameIndex,
+						reader.readFloat(),
+						reader.readFloat(),
+						reader.readFloat(),
+						reader.readFloat()
+					);
+					break;
+				}
 			}
 		}
 	}
