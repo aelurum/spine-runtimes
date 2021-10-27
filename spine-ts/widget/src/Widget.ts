@@ -69,7 +69,7 @@ module spine {
 			}
 			canvas.width = (<HTMLElement>element).clientWidth;
 			canvas.height = (<HTMLElement>element).clientHeight;
-			var webglConfig = { alpha: config.alpha };
+			var webglConfig = { alpha: config.alpha, preserveDrawingBuffer: config.preserveDrawingBuffer, antialias: config.antialias };
 			this.context = new spine.webgl.ManagedWebGLRenderingContext(canvas, webglConfig);
 
 			this.shader = spine.webgl.Shader.newColoredTextured(this.context);
@@ -84,24 +84,26 @@ module spine {
 			if (!config.atlasContent) {
 				assets.loadText(config.atlas);
 			}
-			if (!config.jsonContent) {
+			if (!config.jsonContent && !config.skelContent && config.json) {
 				assets.loadText(config.json);
+			}
+			else if (!config.skelContent && !config.jsonContent && config.skel) {
+				assets.loadData(config.skel);
 			}
 			if (config.atlasPages == null) {
 				if (config.atlas) {
-					var atlasPage = config.atlas.replace(".atlas", ".png");
-					if (atlasPage.lastIndexOf(config.imagesPath) == 0) {
-						atlasPage = atlasPage.substr(config.imagesPath.length);
-					}
-					assets.loadTexture(atlasPage);
+					assets.loadTextureAtlas(config.atlas);
 				} else {
-					let firstLine = config.atlasContent.trim().split("\n")[0];
-					assets.loadTexture(firstLine);
+					let atlasPages = config.atlasContent.trim().split("\n\n");
+					for (let i = 0; i < atlasPages.length; i++) {
+						let firstLine = atlasPages[i].split("\n")[0];
+						assets.loadTexture(firstLine);
+					}
 				}
 			} else {
 				for (let i = 0; i < config.atlasPages.length; i++) {
 					if (config.atlasPagesContent && config.atlasPagesContent[i]) {
-						assets.loadTextureData(config.atlasPages[i], config.atlasPagesContent[0]);
+						assets.loadTextureData(config.atlasPages[i], config.atlasPagesContent[i]);
 					} else {
 						assets.loadTexture(config.atlasPages[i]);
 					}
@@ -112,8 +114,7 @@ module spine {
 
 		private validateConfig (config: SpineWidgetConfig) {
 			if (!config.atlas && !config.atlasContent) throw new Error("Please specify config.atlas or config.atlasContent");
-			if (!config.json && !config.jsonContent) throw new Error("Please specify config.json or config.jsonContent");
-			if (!config.animation) throw new Error("Please specify config.animationName");
+			if ((!config.json && !config.jsonContent) && (!config.skel && !config.skelContent)) throw new Error("Please specify config.json/config.skel or config.jsonContent/config.binaryContent");
 
 			if (!config.scale) config.scale = 1.0;
 			if (!config.skin) config.skin = "default";
@@ -140,9 +141,14 @@ module spine {
 			if (config.atlas && config.atlas.lastIndexOf(config.imagesPath) == 0) {
 				config.atlas = config.atlas.substr(config.imagesPath.length);
 			}
-			if (!config.premultipliedAlpha === undefined) config.premultipliedAlpha = false;
-			if (!config.debug === undefined) config.debug = false;
-			if (!config.alpha === undefined) config.alpha = true;
+			if (config.skel && config.skel.lastIndexOf(config.imagesPath) == 0) {
+				config.skel = config.skel.substr(config.imagesPath.length);
+			}
+			if (config.premultipliedAlpha === undefined) config.premultipliedAlpha = false;
+			if (config.debug === undefined) config.debug = false;
+			if (config.alpha === undefined) config.alpha = true;
+			if (config.preserveDrawingBuffer === undefined) config.preserveDrawingBuffer = true;
+			if (config.antialias === undefined) config.antialias = true;
 			this.backgroundColor.setFromString(config.backgroundColor);
 			this.config = config;
 		}
@@ -156,20 +162,34 @@ module spine {
 					if (config.error) config.error(this, "Failed to load assets: " + JSON.stringify(assetManager.getErrors()));
 					else throw new Error("Failed to load assets: " + JSON.stringify(assetManager.getErrors()));
 				}
-
-				let atlasContent = config.atlasContent === undefined ? this.assetManager.get(this.config.atlas) as string : config.atlasContent;
-				let atlas = new spine.TextureAtlas(atlasContent, (path: string) => {
-					let texture = assetManager.get(path) as spine.webgl.GLTexture;
-					return texture;
-				});
+				
+				let atlas = null;
+				let atlasContent = config.atlasContent === undefined ? assetManager.get(config.atlas) : config.atlasContent;
+				if (typeof atlasContent == "string") {
+					atlas = new spine.TextureAtlas(atlasContent, (path: string) => {
+						 return assetManager.get(path) as spine.webgl.GLTexture;
+					});
+				}
+				else
+					atlas = atlasContent;
 
 				let atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 				var skeletonJson = new spine.SkeletonJson(atlasLoader);
+				var skeletonBinary = new spine.SkeletonBinary(atlasLoader);
 
-				// Set the scale to apply during parsing, parse the file, and create a new skeleton.
-				skeletonJson.scale = config.scale;
 				let jsonContent = config.jsonContent === undefined ? assetManager.get(config.json) as string : config.jsonContent;
-				var skeletonData = skeletonJson.readSkeletonData(jsonContent);
+				let binaryContent = config.skelContent === undefined ? assetManager.get(config.skel) as ArrayBuffer : config.skelContent;
+				var skeletonData = null;
+				// Set the scale to apply during parsing, parse the file, and create a new skeleton.
+				if (jsonContent) {
+					skeletonJson.scale = config.scale;
+					skeletonData = skeletonJson.readSkeletonData(jsonContent);
+				}
+				else {
+					skeletonBinary.scale = config.scale;
+					skeletonData = skeletonBinary.readSkeletonData(binaryContent);
+				}
+
 				var skeleton = this.skeleton = new spine.Skeleton(skeletonData);
 				var bounds = this.bounds;
 				skeleton.setSkinByName(config.skin);
@@ -181,6 +201,12 @@ module spine {
 					skeleton.y = config.y;
 				}
 
+				//Set first animation as a default animation
+				if (!config.animation) {
+					if (skeletonData.animations.length > 0) {
+						config.animation = skeletonData.animations[0].name;
+					}
+				}
 				var animationState = this.state = new spine.AnimationState(new spine.AnimationStateData(skeleton.data));
 				animationState.setAnimation(0, config.animation, config.loop);
 				if (config.success) config.success(this);
@@ -245,6 +271,7 @@ module spine {
 			let w = canvas.clientWidth;
 			let h = canvas.clientHeight;
 			let bounds = this.bounds;
+
 			var devicePixelRatio = window.devicePixelRatio || 1;
 			if (canvas.width != Math.floor(w * devicePixelRatio) || canvas.height != Math.floor(h * devicePixelRatio)) {
 				canvas.width = Math.floor(w * devicePixelRatio);
@@ -289,7 +316,6 @@ module spine {
 			this.state.setAnimation(0, animationName, this.config.loop);
 		}
 
-
 		static loadWidgets() {
 			let widgets = document.getElementsByClassName("spine-widget");
 			for (var i = 0; i < widgets.length; i++) {
@@ -301,6 +327,7 @@ module spine {
 			let config = new SpineWidgetConfig();
 			config.atlas = widget.getAttribute("data-atlas");
 			config.json = widget.getAttribute("data-json");
+			config.skel = widget.getAttribute("data-skel");
 			config.animation = widget.getAttribute("data-animation");
 			if (widget.getAttribute("data-images-path")) config.imagesPath = widget.getAttribute("data-images-path");
 			if (widget.getAttribute("data-atlas-pages")) config.atlasPages = widget.getAttribute("data-atlas-pages").split(",");
@@ -314,6 +341,8 @@ module spine {
 			if (widget.getAttribute("data-premultiplied-alpha")) config.premultipliedAlpha = widget.getAttribute("data-premultiplied-alpha") === "true";
 			if (widget.getAttribute("data-debug")) config.debug = widget.getAttribute("data-debug") === "true";
 			if (widget.getAttribute("data-alpha")) config.alpha = widget.getAttribute("data-alpha") === "true";
+			if (widget.getAttribute("data-preserve-drawing-buffer")) config.preserveDrawingBuffer = widget.getAttribute("data-preserve-drawing-buffer") === "true";
+			if (widget.getAttribute("data-antialias")) config.antialias = widget.getAttribute("data-antialias") === "true";
 
 			new spine.SpineWidget(widget, config);
 		}
@@ -341,6 +370,8 @@ module spine {
 	export class SpineWidgetConfig {
 		json: string;
 		jsonContent: any;
+		skel: string;
+		skelContent: ArrayBuffer;
 		atlas: string;
 		atlasContent: string;
 		animation: string;
@@ -353,6 +384,8 @@ module spine {
 		x = 0;
 		y = 0;
 		alpha = true;
+		preserveDrawingBuffer = true;
+		antialias = true;
 		fitToCanvas = true;
 		backgroundColor = "#555555";
 		premultipliedAlpha = false;

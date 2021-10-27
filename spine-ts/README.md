@@ -104,19 +104,20 @@ Then navigate to `http://localhost:8000/webgl/example`, `http://localhost:8000/c
 ### Using the Widget
 To easily display Spine animations on your website, you can use the spine-ts Widget backend.
 
-1. Export your Spine animation with a texture atlas and put the resulting `.json`, `.atlas` and `.png` files on your server.
+1. Export your Spine animation with a texture atlas and put the resulting `.json`/`.skel`, `.atlas` and `.png` files on your server.
 2. Copy the `build/spine-widget.js` file to your server and include it on your website `<script src="spine-widget.js"></script>`, adjusting the src to match the location of the file on your server.
 3. Add HTML elements, e.g. a `<div>`, with the class `spine-widget` to your website, specifying its configuration such as the location of the files, the animation to display, etc.
 
 You can configure a HTML element either directly via HTML, or using JavaScript. At a minimum, you need to specify the location of the
-`.json` and `.atlas` file as well as the name of the animation to play back.
+`.json` or `.skel` and `.atlas` file.
 
 #### HTML configuration
 To specify the configuration of a Spine Widget via HTML, you can use these HTML element attributes:
 
-  * `data-json`: required, path to the `.json` file, absolute or relative, e.g. "assets/animation.json"
+  * `data-json`: required if `data-skel` isn't specified, path to the `.json` file, absolute or relative, e.g. "assets/animation.json"
+  * `data-skel`: required if `data-json` isn't specified, path to the `.skel` file, absolute or relative, e.g. "assets/animation.skel"
   * `data-atlas`: required, path to the `.atlas` file, absolute or relative, e.g. "assets/animation.atlas"
-  * `data-animation`: required, the name of the animation to play back
+  * `data-animation`: optional, the name of the animation to play back. If omitted, widget will use the first animation found in the skeleton.
   * `data-images-path`: optional, the location of images on the server to load atlas pages from. If omitted, atlas `.png` page files are loaded relative to the `.atlas` file.
   * `data-skin`: optional, the name of the skin to use. Defaults to `default` if omitted.
   * `data-loop`: optional, whether to loop the animation or not. Defaults to `true` if omitted.
@@ -168,21 +169,26 @@ new spine.SpineWidget("my-widget", {
 
 The configuration object has the following fields:
 
-  * `json`: required, path to the `.json` file, absolute or relative, e.g. "assets/animation.json"
+  * `json`: required if `skel` isn't specified, path to the `.json` file, absolute or relative, e.g. "assets/animation.json"
   * `jsonContent`: optional, string or JSON object holding the content of a skeleton `.json` file. Overrides `json` if given.
+  * `skel`: required if `json` isn't specified, path to the `.skel` file, absolute or relative, e.g. "assets/animation.skel"
+  * `skelContent`: optional, binary data array holding the content of a skeleton binary `.skel` file. Overrides `skel` if given.
+  * * Note: If both `json` and `skel` are specified, `json` will be used by default. The same for `jsonContent` and `skelContent`. 
   * `atlas`: required, path to the `.atlas` file, absolute or relative, e.g. "assets/animation.atlas"
   * `atlasContent`: optional, string holding the content of an .atlas file. Overrides `atlas` if given.
-  * `animation`: required, the name of the animation to play back
+  * `animation`: optional, the name of the animation to play back. If omitted, widget will use the first animation found in the skeleton.
   * `imagesPath`: optional, the location of images on the server to load atlas pages from. If omitted, atlas `.png` page files are loaded relative to the `.atlas` file.
   * `atlasPages`: optional, the list of atlas page images, e.g. `atlasPages: ["assets/page1.png", "assets/page2.png"]` when using code, or `data-atlas-pages="assets/page1.png,assets/page2.png"` on case of HTML instantiation. Use this if you have a multi-page atlas. If ommited, only one atlas page image is loaded based on the atlas file name, replacing `.atlas` with `.png`.
   * `atlasPagesContent`: optional, the list of atlas page images as data URIs. If given, `atlasPages` must also be given.
   * `skin`: optional, the name of the skin to use. Defaults to `default` if omitted.
   * `loop`: optional, whether to loop the animation or not. Defaults to `true` if omitted.
-  * `scale`: optional, the scaling factor to apply when loading the `.json` file. Defaults to `1` if omitted. Irrelevant if `data-fit-to-canavs` is `true`.
+  * `scale`: optional, the scaling factor to apply when loading the `.json`/`.skel` file. Defaults to `1` if omitted. Irrelevant if `data-fit-to-canavs` is `true`.
   * `x`: optional, the x-coordinate to display the animation at. The origin is in the bottom left corner. Defaults to `0` if omitted. Irrelevant if `data-fit-to-canvas` is `true`.
   * `y`: optional, the y-coordinate to display the animation at. The origin is in the bottom left corner with the y-axis pointing upwards. Defaults to `0` if omitted. Irrelevant if `data-fit-to-canvas` is `true`.
   * `fitToCanvas`: optional, whether to fit the animation to the canvas size or not. Defaults to `true` if omitted, in which case `data-scale`, `data-x` and `data-y` are irrelevant. This setting calculates the setup pose bounding box using the specified skin to center and scale the animation on the canvas.
-  * `alpha`: optional, whether to allow the canvas to be transparent. Defaults to `true`. Set the alpha channel in ``backgroundColor` to 0 as well, e.g. `#00000000`.
+  * `alpha`: optional, whether to allow the canvas to be transparent. Defaults to `true`. Set the alpha channel in `backgroundColor` to 0 as well, e.g. `#00000000`.
+  * `preserveDrawingBuffer`: optional, whether to allow the canvas to preserve buffers from clearing until they are cleared or overwritten by the author. Defaults to `true` if omitted.
+  * `antialias`: optional, whether to allow the canvas to perform anti-aliasing if possible. Defaults to `true` if omitted.
   * `backgroundColor`: optional, the background color to use. Defaults to `#000000` if omitted.
   * `premultipliedAlpha`: optional, whether the atlas pages use premultiplied alpha or not. Defaults to `false` if omitted.
   * `debug`: optional, whether to show debug information such as bones, attachments, etc. Defaults to `false` if omitted.
