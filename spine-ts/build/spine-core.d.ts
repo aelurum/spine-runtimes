@@ -26,7 +26,22 @@ declare module spine {
 		transformConstraint = 10,
 		pathConstraintPosition = 11,
 		pathConstraintSpacing = 12,
-		pathConstraintMix = 13,
+		pathConstraintMix = 13
+	}
+	enum SlotTimelineType {
+		attachment = 0,
+		color = 1
+	}
+	enum BoneTimelineType {
+		rotate = 0,
+		translate = 1,
+		scale = 2,
+		shear = 3
+	}
+	enum PathConstraintTimelineType {
+		pathConstraintPosition = 0,
+		pathConstraintSpacing = 1,
+		pathConstraintMix = 2
 	}
 	abstract class CurveTimeline implements Timeline {
 		static LINEAR: number;
@@ -215,7 +230,7 @@ declare module spine {
 		constructor(data: AnimationStateData);
 		update(delta: number): void;
 		updateMixingFrom(entry: TrackEntry, delta: number): void;
-		apply(skeleton: Skeleton): void;
+		apply(skeleton: Skeleton): boolean;
 		applyMixingFrom(entry: TrackEntry, skeleton: Skeleton): number;
 		applyRotateTimeline(timeline: Timeline, skeleton: Skeleton, time: number, alpha: number, setupPose: boolean, timelinesRotation: Array<number>, i: number, firstFrame: boolean): void;
 		queueEvents(entry: TrackEntry, animationTime: number): void;
@@ -294,7 +309,7 @@ declare module spine {
 		end = 2,
 		dispose = 3,
 		complete = 4,
-		event = 5,
+		event = 5
 	}
 	interface AnimationStateListener2 {
 		start(entry: TrackEntry): void;
@@ -333,8 +348,13 @@ declare module spine {
 		private toLoad;
 		private loaded;
 		constructor(textureLoader: (image: HTMLImageElement) => any, pathPrefix?: string);
+		private static downloadText;
+		private static downloadBinary;
 		loadText(path: string, success?: (path: string, text: string) => void, error?: (path: string, error: string) => void): void;
+		loadData(path: string, success?: (path: string, respData: Uint8Array) => void, error?: (path: string, error: string) => void): void;
 		loadTexture(path: string, success?: (path: string, image: HTMLImageElement) => void, error?: (path: string, error: string) => void): void;
+		loadTextureData(path: string, data: string, success?: (path: string, image: HTMLImageElement) => void, error?: (path: string, error: string) => void): void;
+		loadTextureAtlas(path: string, success?: (path: string, atlas: TextureAtlas) => void, error?: (path: string, error: string) => void): void;
 		get(path: string): any;
 		remove(path: string): void;
 		removeAll(): void;
@@ -357,140 +377,11 @@ declare module spine {
 	}
 }
 declare module spine {
-	abstract class Attachment {
-		name: string;
-		constructor(name: string);
-	}
-	abstract class VertexAttachment extends Attachment {
-		bones: Array<number>;
-		vertices: ArrayLike<number>;
-		worldVerticesLength: number;
-		constructor(name: string);
-		computeWorldVertices(slot: Slot, worldVertices: ArrayLike<number>): void;
-		computeWorldVerticesWith(slot: Slot, start: number, count: number, worldVertices: ArrayLike<number>, offset: number): void;
-		applyDeform(sourceAttachment: VertexAttachment): boolean;
-	}
-}
-declare module spine {
-	interface AttachmentLoader {
-		newRegionAttachment(skin: Skin, name: string, path: string): RegionAttachment;
-		newMeshAttachment(skin: Skin, name: string, path: string): MeshAttachment;
-		newBoundingBoxAttachment(skin: Skin, name: string): BoundingBoxAttachment;
-		newPathAttachment(skin: Skin, name: string): PathAttachment;
-	}
-}
-declare module spine {
-	enum AttachmentType {
-		Region = 0,
-		BoundingBox = 1,
-		Mesh = 2,
-		LinkedMesh = 3,
-		Path = 4,
-	}
-}
-declare module spine {
-	class BoundingBoxAttachment extends VertexAttachment {
-		color: Color;
-		constructor(name: string);
-	}
-}
-declare module spine {
-	class MeshAttachment extends VertexAttachment {
-		region: TextureRegion;
-		path: string;
-		regionUVs: ArrayLike<number>;
-		worldVertices: ArrayLike<number>;
-		triangles: Array<number>;
-		color: Color;
-		hullLength: number;
-		private parentMesh;
-		inheritDeform: boolean;
-		tempColor: Color;
-		constructor(name: string);
-		updateUVs(): void;
-		updateWorldVertices(slot: Slot, premultipliedAlpha: boolean): ArrayLike<number>;
-		applyDeform(sourceAttachment: VertexAttachment): boolean;
-		getParentMesh(): MeshAttachment;
-		setParentMesh(parentMesh: MeshAttachment): void;
-	}
-}
-declare module spine {
-	class PathAttachment extends VertexAttachment {
-		lengths: Array<number>;
-		closed: boolean;
-		constantSpeed: boolean;
-		color: Color;
-		constructor(name: string);
-	}
-}
-declare module spine {
-	class RegionAttachment extends Attachment {
-		static OX1: number;
-		static OY1: number;
-		static OX2: number;
-		static OY2: number;
-		static OX3: number;
-		static OY3: number;
-		static OX4: number;
-		static OY4: number;
-		static X1: number;
-		static Y1: number;
-		static C1R: number;
-		static C1G: number;
-		static C1B: number;
-		static C1A: number;
-		static U1: number;
-		static V1: number;
-		static X2: number;
-		static Y2: number;
-		static C2R: number;
-		static C2G: number;
-		static C2B: number;
-		static C2A: number;
-		static U2: number;
-		static V2: number;
-		static X3: number;
-		static Y3: number;
-		static C3R: number;
-		static C3G: number;
-		static C3B: number;
-		static C3A: number;
-		static U3: number;
-		static V3: number;
-		static X4: number;
-		static Y4: number;
-		static C4R: number;
-		static C4G: number;
-		static C4B: number;
-		static C4A: number;
-		static U4: number;
-		static V4: number;
-		x: number;
-		y: number;
-		scaleX: number;
-		scaleY: number;
-		rotation: number;
-		width: number;
-		height: number;
-		color: Color;
-		path: string;
-		rendererObject: any;
-		region: TextureRegion;
-		offset: ArrayLike<number>;
-		vertices: ArrayLike<number>;
-		tempColor: Color;
-		constructor(name: string);
-		setRegion(region: TextureRegion): void;
-		updateOffset(): void;
-		updateWorldVertices(slot: Slot, premultipliedAlpha: boolean): ArrayLike<number>;
-	}
-}
-declare module spine {
 	enum BlendMode {
 		Normal = 0,
 		Additive = 1,
 		Multiply = 2,
-		Screen = 3,
+		Screen = 3
 	}
 }
 declare module spine {
@@ -559,7 +450,7 @@ declare module spine {
 		OnlyTranslation = 1,
 		NoRotationOrReflection = 2,
 		NoScale = 3,
-		NoScaleOrReflection = 4,
+		NoScaleOrReflection = 4
 	}
 }
 declare module spine {
@@ -658,17 +549,17 @@ declare module spine {
 	}
 	enum PositionMode {
 		Fixed = 0,
-		Percent = 1,
+		Percent = 1
 	}
 	enum SpacingMode {
 		Length = 0,
 		Fixed = 1,
-		Percent = 2,
+		Percent = 2
 	}
 	enum RotateMode {
 		Tangent = 0,
 		Chain = 1,
-		ChainScale = 2,
+		ChainScale = 2
 	}
 }
 declare module spine {
@@ -679,12 +570,12 @@ declare module spine {
 		private rawAssets;
 		private errors;
 		constructor(pathPrefix?: string);
-		private queueAsset(clientId, textureLoader, path);
+		private queueAsset;
 		loadText(clientId: string, path: string): void;
 		loadJson(clientId: string, path: string): void;
 		loadTexture(clientId: string, textureLoader: (image: HTMLImageElement) => any, path: string): void;
 		get(clientId: string, path: string): any;
-		private updateClientAssets(clientAssets);
+		private updateClientAssets;
 		isLoadingComplete(clientId: string): boolean;
 		dispose(): void;
 		hasErrors(): boolean;
@@ -738,6 +629,43 @@ declare module spine {
 		getBounds(offset: Vector2, size: Vector2): void;
 		update(delta: number): void;
 	}
+}
+declare module spine {
+	class BinaryReader {
+		offset: number;
+		size: number;
+		buffer: Uint8Array;
+		floatBuf: ArrayBuffer;
+		floatBufIn: Uint8Array;
+		floatBufOut: Float32Array;
+		doubleBuf: ArrayBuffer;
+		doubleBufIn: Uint8Array;
+		doubleBufOut: Float64Array;
+		constructor(data: ArrayBuffer);
+		readByte(): number;
+		readSByte(): number;
+		readBool(): boolean;
+		readShort(): number;
+		readInt(): number;
+		readVarInt(optimizePositive?: boolean): number;
+		readFloat(): number;
+		readFloatArray(n: number, scale: number): Float32Array;
+		readShortArray(): Array<number>;
+		readString(): string;
+		readColor(): Array<number>;
+	}
+	export class SkeletonBinary {
+		attachmentLoader: AttachmentLoader;
+		scale: number;
+		private linkedMeshes;
+		constructor(attachmentLoader: AttachmentLoader);
+		readSkeletonData(buf: ArrayBuffer): SkeletonData;
+		readAttachment(reader: BinaryReader, skin: Skin, slotIndex: number, placeholderName: string, skeletonData: SkeletonData, nonessential: boolean): Attachment;
+		readVertices(reader: BinaryReader, attachment: VertexAttachment, verticesLength: number): void;
+		readAnimation(reader: BinaryReader, name: string, skeletonData: SkeletonData): void;
+		readCurve(reader: BinaryReader, timeline: CurveTimeline, frameIndex: number): void;
+	}
+	export {};
 }
 declare module spine {
 	class SkeletonBounds {
@@ -867,12 +795,12 @@ declare module spine {
 		MipMapNearestNearest = 9984,
 		MipMapLinearNearest = 9985,
 		MipMapNearestLinear = 9986,
-		MipMapLinearLinear = 9987,
+		MipMapLinearLinear = 9987
 	}
 	enum TextureWrap {
 		MirroredRepeat = 33648,
 		ClampToEdge = 33071,
-		Repeat = 10497,
+		Repeat = 10497
 	}
 	class TextureRegion {
 		renderObject: any;
@@ -888,13 +816,18 @@ declare module spine {
 		originalWidth: number;
 		originalHeight: number;
 	}
+	class FakeTexture extends spine.Texture {
+		setFilters(minFilter: spine.TextureFilter, magFilter: spine.TextureFilter): void;
+		setWraps(uWrap: spine.TextureWrap, vWrap: spine.TextureWrap): void;
+		dispose(): void;
+	}
 }
 declare module spine {
 	class TextureAtlas implements Disposable {
 		pages: TextureAtlasPage[];
 		regions: TextureAtlasRegion[];
 		constructor(atlasText: string, textureLoader: (path: string) => any);
-		private load(atlasText, textureLoader);
+		private load;
 		findRegion(name: string): TextureAtlasRegion;
 		dispose(): void;
 	}
@@ -972,6 +905,9 @@ declare module spine {
 	interface Disposable {
 		dispose(): void;
 	}
+	interface Restorable {
+		restore(): void;
+	}
 	class Color {
 		r: number;
 		g: number;
@@ -1045,5 +981,134 @@ declare module spine {
 	interface ArrayLike<T> {
 		length: number;
 		[n: number]: T;
+	}
+}
+declare module spine {
+	abstract class Attachment {
+		name: string;
+		constructor(name: string);
+	}
+	abstract class VertexAttachment extends Attachment {
+		bones: Array<number>;
+		vertices: ArrayLike<number>;
+		worldVerticesLength: number;
+		constructor(name: string);
+		computeWorldVertices(slot: Slot, worldVertices: ArrayLike<number>): void;
+		computeWorldVerticesWith(slot: Slot, start: number, count: number, worldVertices: ArrayLike<number>, offset: number): void;
+		applyDeform(sourceAttachment: VertexAttachment): boolean;
+	}
+}
+declare module spine {
+	interface AttachmentLoader {
+		newRegionAttachment(skin: Skin, name: string, path: string): RegionAttachment;
+		newMeshAttachment(skin: Skin, name: string, path: string): MeshAttachment;
+		newBoundingBoxAttachment(skin: Skin, name: string): BoundingBoxAttachment;
+		newPathAttachment(skin: Skin, name: string): PathAttachment;
+	}
+}
+declare module spine {
+	enum AttachmentType {
+		Region = 0,
+		BoundingBox = 1,
+		Mesh = 2,
+		LinkedMesh = 3,
+		Path = 4
+	}
+}
+declare module spine {
+	class BoundingBoxAttachment extends VertexAttachment {
+		color: Color;
+		constructor(name: string);
+	}
+}
+declare module spine {
+	class MeshAttachment extends VertexAttachment {
+		region: TextureRegion;
+		path: string;
+		regionUVs: ArrayLike<number>;
+		worldVertices: ArrayLike<number>;
+		triangles: Array<number>;
+		color: Color;
+		hullLength: number;
+		private parentMesh;
+		inheritDeform: boolean;
+		tempColor: Color;
+		constructor(name: string);
+		updateUVs(): void;
+		updateWorldVertices(slot: Slot, premultipliedAlpha: boolean): ArrayLike<number>;
+		applyDeform(sourceAttachment: VertexAttachment): boolean;
+		getParentMesh(): MeshAttachment;
+		setParentMesh(parentMesh: MeshAttachment): void;
+	}
+}
+declare module spine {
+	class PathAttachment extends VertexAttachment {
+		lengths: Array<number>;
+		closed: boolean;
+		constantSpeed: boolean;
+		color: Color;
+		constructor(name: string);
+	}
+}
+declare module spine {
+	class RegionAttachment extends Attachment {
+		static OX1: number;
+		static OY1: number;
+		static OX2: number;
+		static OY2: number;
+		static OX3: number;
+		static OY3: number;
+		static OX4: number;
+		static OY4: number;
+		static X1: number;
+		static Y1: number;
+		static C1R: number;
+		static C1G: number;
+		static C1B: number;
+		static C1A: number;
+		static U1: number;
+		static V1: number;
+		static X2: number;
+		static Y2: number;
+		static C2R: number;
+		static C2G: number;
+		static C2B: number;
+		static C2A: number;
+		static U2: number;
+		static V2: number;
+		static X3: number;
+		static Y3: number;
+		static C3R: number;
+		static C3G: number;
+		static C3B: number;
+		static C3A: number;
+		static U3: number;
+		static V3: number;
+		static X4: number;
+		static Y4: number;
+		static C4R: number;
+		static C4G: number;
+		static C4B: number;
+		static C4A: number;
+		static U4: number;
+		static V4: number;
+		x: number;
+		y: number;
+		scaleX: number;
+		scaleY: number;
+		rotation: number;
+		width: number;
+		height: number;
+		color: Color;
+		path: string;
+		rendererObject: any;
+		region: TextureRegion;
+		offset: ArrayLike<number>;
+		vertices: ArrayLike<number>;
+		tempColor: Color;
+		constructor(name: string);
+		setRegion(region: TextureRegion): void;
+		updateOffset(): void;
+		updateWorldVertices(slot: Slot, premultipliedAlpha: boolean): ArrayLike<number>;
 	}
 }
