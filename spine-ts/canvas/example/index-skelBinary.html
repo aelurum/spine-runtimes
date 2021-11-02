@@ -1,4 +1,6 @@
 <html>
+<head>
+<title>test skelBinary and multi-page atlas render</title>
 <script src="../../build/spine-canvas.js"></script>
 <script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
 <style>
@@ -6,6 +8,7 @@
 	body, html { height: 100% }
 	canvas { position: absolute; width: 100% ;height: 100%; }
 </style>
+</head>
 <body>
 <canvas id="canvas"></canvas>
 </body>
@@ -31,15 +34,15 @@ function init () {
 
 	assetManager = new spine.canvas.AssetManager();	
 
-	assetManager.loadText("assets/spineboy.json");
-	assetManager.loadTextureAtlas("assets/spineboy.atlas");
+	assetManager.loadData("assets/dragon.skel");
+	assetManager.loadTextureAtlas("assets/dragon.atlas");
 
 	requestAnimationFrame(load);
 }
 
 function load () {
 	if (assetManager.isLoadingComplete()) {
-		var data = loadSkeleton("spineboy", "idle", "default");
+		var data = loadSkeleton("dragon", "idle", "default");
 		skeleton = data.skeleton;
 		state = data.state;
 		bounds = data.bounds;	
@@ -58,19 +61,20 @@ function loadSkeleton (name, initialAnimation, skin) {
 	// Create a AtlasAttachmentLoader, which is specific to the WebGL backend.
 	atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 
-	// Create a SkeletonJson instance for parsing the .json file.
-	var skeletonJson = new spine.SkeletonJson(atlasLoader);
-
-	// Set the scale to apply during parsing, parse the file, and create a new skeleton.
-	var skeletonData = skeletonJson.readSkeletonData(assetManager.get("assets/" + name + ".json"));
+	// Create a SkeletonJson instance for parsing the .skel file.
+	var skeletonBinary = new spine.SkeletonBinary(atlasLoader);
+	
+	// Parse the file, and create a new skeleton.
+	var skeletonData = skeletonBinary.readSkeletonData(assetManager.get("assets/" + name + ".skel"));
 	var skeleton = new spine.Skeleton(skeletonData);
 	skeleton.flipY = true;
-	var bounds = calculateBounds(skeleton);
+	var bounds = calculateBounds(skeleton);	
 	skeleton.setSkinByName(skin);
 
-	// Create an AnimationState, and set the initial animation in looping mode.
+	// Create an AnimationState, and set the first animation in looping mode.
 	var animationState = new spine.AnimationState(new spine.AnimationStateData(skeleton.data));
-	animationState.setAnimation(0, initialAnimation, true);
+	let animation = skeletonData.animations[0].name;
+	animationState.setAnimation(0, animation, true);
 	animationState.addListener({
 		event: function(trackIndex, event) {
 			// console.log("Event on track " + trackIndex + ": " + JSON.stringify(event));

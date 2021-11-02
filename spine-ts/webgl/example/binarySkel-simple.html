@@ -1,0 +1,84 @@
+<html>
+<head>
+	<title>test binary skeleton render</title>
+	<script src="../../build/spine-webgl.js"></script>
+	<script src="https://code.jquery.com/jquery-3.1.0.min.js"></script>
+	<style> body { background: rgba(0, 0, 0, 0.8); } </style>
+</head>
+<body>
+	<div style="width: 800px; margin: auto">
+		<canvas id="canvas" style="width: 100%; height: 800px;"></canvas>
+	</div>
+	<script>
+		var FILE = "spineboy";
+		var SCALE = 0.5;
+		var ANIMATION = "walk";
+
+		var canvas, context, gl, renderer, assetManager;
+		var skeleton, state;
+		var timeKeeper;
+
+		function init() {
+			canvas = document.getElementById("canvas");
+			canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight;
+			context = new spine.webgl.ManagedWebGLRenderingContext(canvas, { alpha: false });
+			gl = context.gl;
+
+			renderer = new spine.webgl.SceneRenderer(canvas, context);
+
+			assetManager = new spine.webgl.AssetManager(context, "assets/");
+
+			assetManager.loadTextureAtlas(FILE + ".atlas");
+			assetManager.loadData(FILE + ".skel");
+
+			timeKeeper = new spine.TimeKeeper();
+			requestAnimationFrame(load);
+		}
+
+		function load() {
+			if (assetManager.isLoadingComplete()) {
+				let atlas = assetManager.get(FILE + ".atlas");
+				let atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+				let SkeletonBinary = new spine.SkeletonBinary(atlasLoader);
+				SkeletonBinary.scale = SCALE;
+				let skeletonData = SkeletonBinary.readSkeletonData(assetManager.get(FILE + ".skel"));
+
+				skeleton = new spine.Skeleton(skeletonData);
+				let stateData = new spine.AnimationStateData(skeleton.data);
+				state = new spine.AnimationState(stateData);
+
+				state.setAnimation(0, ANIMATION, true);
+				state.apply(skeleton);
+				skeleton.updateWorldTransform();
+
+				requestAnimationFrame(render);
+			} else {
+				requestAnimationFrame(load);
+			}
+		}
+
+		function render() {
+			timeKeeper.update();
+			let delta = timeKeeper.delta;
+
+			state.update(delta);
+			state.apply(skeleton);
+			skeleton.updateWorldTransform();
+
+			gl.clearColor(0.2, 0.2, 0.2, 1);
+			gl.clear(gl.COLOR_BUFFER_BIT);
+
+			renderer.resize(spine.webgl.ResizeMode.Fit);
+			renderer.begin();
+
+			renderer.drawSkeleton(skeleton, false);
+
+			renderer.end();
+
+			requestAnimationFrame(render)
+		}
+
+		init();
+	</script>
+</body>
+</html>

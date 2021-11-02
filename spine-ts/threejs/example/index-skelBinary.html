@@ -1,0 +1,121 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<title>test skelBinary and multi-page atlas render</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r79/three.js"></script>
+<script src="../../build/spine-threejs.js"></script>
+</head>
+<style>
+	* { margin: 0; padding: 0; }
+	body, html { height: 100% }
+	canvas { position: absolute; width: 100% ;height: 100%; }
+</style>
+<body>
+<script>
+
+var scene, camera, renderer;
+var geometry, material, mesh, skeletonMesh;
+var assetManager;
+var canvas;
+var lastFrameTime = Date.now() / 1000;
+
+var baseUrl = "assets/";
+var skeletonFile = "dragon.skel";
+var atlasFile = skeletonFile.replace(".skel", ".atlas");
+
+function init () {
+	// create the THREE.JS camera, scene and renderer (WebGL)
+	var width = window.innerWidth, height = window.innerHeight;
+	camera = new THREE.PerspectiveCamera(75, width / height, 1, 3000);
+	camera.position.y = 100;
+	camera.position.z = 400;
+	scene = new THREE.Scene();
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize(width, height);
+	document.body.appendChild(renderer.domElement);
+	canvas = renderer.domElement;
+
+	// load the assets required to display the Dragon model
+	assetManager = new spine.threejs.AssetManager(baseUrl);
+	assetManager.loadData(skeletonFile);
+	assetManager.loadTextureAtlas(atlasFile);
+
+	requestAnimationFrame(load);
+}
+
+function load () {
+	if (assetManager.isLoadingComplete()) {
+		// Add a box to the scene to which we attach the skeleton mesh
+		geometry = new THREE.BoxGeometry(150, 150, 150);
+		material = new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true});
+		mesh = new THREE.Mesh(geometry, material);
+		scene.add(mesh);
+
+		atlas = assetManager.get(atlasFile);
+
+		// Create a AtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
+		atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+
+		// Create a skeletonBinary instance for parsing the .skel file.
+		var skeletonBinary = new spine.SkeletonBinary(atlasLoader);
+
+		// Set the scale to apply during parsing, parse the file, and create a new skeleton.
+		skeletonBinary.scale = 0.3;
+		var skeletonData = skeletonBinary.readSkeletonData(assetManager.get(skeletonFile));
+
+		// Create a SkeletonMesh from the data and attach it to the scene
+		skeletonMesh = new spine.threejs.SkeletonMesh(skeletonData);
+		skeletonMesh.premultipliedAlpha = false;
+		skeletonMesh.skeleton.y = 100;
+		let animation = skeletonData.animations[0].name;
+		skeletonMesh.state.setAnimation(0, animation, true);
+		console.log(skeletonMesh)
+		mesh.add(skeletonMesh);
+
+		requestAnimationFrame(render);
+	} else requestAnimationFrame(load);
+}
+
+var lastTime = Date.now();
+function render() {
+	// calculate delta time for animation purposes
+	var now = Date.now() / 1000;
+	var delta = now - lastFrameTime;
+	lastFrameTime = now;
+	
+	// resize canvas to use full page, adjust camera/renderer
+	resize();
+
+	// rotate the cube
+	mesh.rotation.x = Math.sin(now) * Math.PI * 0.2;
+	mesh.rotation.y = Math.cos(now) * Math.PI * 0.4;
+
+	// update the animation
+	skeletonMesh.update(delta);
+
+	// render the scene
+	renderer.render(scene, camera);
+
+	requestAnimationFrame(render);
+}
+
+function resize () {
+	var w = window.innerWidth;
+	var h = window.innerHeight;	
+	if (canvas.width != w || canvas.height != h) {
+		canvas.width = w;
+		canvas.height = h;
+	}
+
+	camera.aspect = w / h;
+	camera.updateProjectionMatrix();
+
+	renderer.setSize(w, h);
+}
+
+(function() {
+	init();
+}());
+</script>
+</body>
+</html>

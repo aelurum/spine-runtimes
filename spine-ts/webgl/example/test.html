@@ -15,7 +15,7 @@
 var FILE = "raptor";
 var ANIMATION = "walk";
 var NUM_SKELETONS = 1;
-var SCALE = 0.5;
+var SCALE = 0.3;
 
 var canvas, context, gl, renderer, input, assetManager;
 var skeletons = [];
@@ -48,7 +48,7 @@ function init() {
 function load() {
 	timeKeeper.update();
 	if (assetManager.isLoadingComplete()) {
-        var atlas = assetManager.get(FILE.replace("-pro", "").replace("-oss", "") + ".atlas");
+		var atlas = assetManager.get(FILE.replace("-pro", "").replace("-oss", "") + ".atlas");
 		var atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 		var skeletonJson = new spine.SkeletonJson(atlasLoader);
 		skeletonJson.scale = SCALE;

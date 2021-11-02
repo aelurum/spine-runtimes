@@ -37,7 +37,7 @@ function init () {
 	canvas = document.getElementById("canvas");
 	canvas.width = window.innerWidth;
 	canvas.height = window.innerHeight;
-	var config = { alpha: false };
+	var config = { alpha: false, preserveDrawingBuffer: true, antialias: true };
 	gl = canvas.getContext("webgl", config) || canvas.getContext("experimental-webgl", config);
 	if (!gl) {
 		alert('WebGL is unavailable.');
@@ -59,10 +59,12 @@ function init () {
 	shapes = new spine.webgl.ShapeRenderer(gl);
 	assetManager = new spine.webgl.AssetManager(gl);
 
-	// Tell AssetManager to load the resources for each model, including the exported .json file, the .atlas file and the .png
-	// file for the atlas. We then wait until all resources are loaded in the load() method.
-	assetManager.loadText("assets/spineboy.json");
+	// Tell AssetManager to load the resources for each model (.json/.skel files and the .atlas files)
+	// We then wait until all resources are loaded in the load() method.
+	assetManager.loadData("assets/spineboy.skel");
 	assetManager.loadTextureAtlas("assets/spineboy.atlas");
+	assetManager.loadData("assets/dragon.skel");
+	assetManager.loadTextureAtlas("assets/dragon.atlas");
 	assetManager.loadText("assets/raptor.json");
 	assetManager.loadTextureAtlas("assets/raptor.atlas");
 	assetManager.loadText("assets/tank.json");
@@ -79,8 +81,9 @@ function init () {
 function load () {
 	// Wait until the AssetManager has loaded all resources, then load the skeletons.
 	if (assetManager.isLoadingComplete()) {
+		skeletons["spineboy"] = loadSkeleton("spineboy", "run", false, null, true);
+		skeletons["dragon"] = loadSkeleton("dragon", null, false, null, true);
 		skeletons["raptor"] = loadSkeleton("raptor", "walk", false);
-		skeletons["spineboy"] = loadSkeleton("spineboy", "run", false);
 		skeletons["tank"] = loadSkeleton("tank", "drive", false);
 		skeletons["goblins"] = loadSkeleton("goblins-mesh", "walk", false, "goblin");
 		skeletons["vine"] = loadSkeleton("vine", "animation", false);
@@ -92,8 +95,8 @@ function load () {
 	}
 }
 
-function loadSkeleton (name, initialAnimation, premultipliedAlpha, skin) {
-	if (skin === undefined) skin = "default";
+function loadSkeleton (name, initialAnimation, premultipliedAlpha, skin, binary = false) {
+	if (!skin) skin = "default";
 
 	// Load the texture atlas using name.atlas from the AssetManager.
 	atlas = assetManager.get("assets/" + name.replace("-ess", "").replace("-pro", "") + ".atlas");
@@ -101,11 +104,29 @@ function loadSkeleton (name, initialAnimation, premultipliedAlpha, skin) {
 	// Create a AtlasAttachmentLoader that resolves region, mesh, boundingbox and path attachments
 	atlasLoader = new spine.AtlasAttachmentLoader(atlas);
 
-	// Create a SkeletonJson instance for parsing the .json file.
-	var skeletonJson = new spine.SkeletonJson(atlasLoader);
+	let skeletonData;
+	if (!binary) {
+		// Create a SkeletonJson instance for parsing the .json file.
+		let skeletonJson = new spine.SkeletonJson(atlasLoader);
 
-	// Set the scale to apply during parsing, parse the file, and create a new skeleton.
-	var skeletonData = skeletonJson.readSkeletonData(assetManager.get("assets/" + name + ".json"));
+		// Set the scale to apply during parsing
+		skeletonJson.scale = 0.5
+
+		// Parse the file.
+		skeletonData = skeletonJson.readSkeletonData(assetManager.get("assets/" + name + ".json"));
+	}
+	else {
+		// Create a SkeletonBinary instance for parsing the .skel file.
+		let skeletonBinary = new spine.SkeletonBinary(atlasLoader);
+
+		// Set the scale to apply during parsing
+		skeletonBinary.scale = 0.8
+
+		// Parse the file.
+		skeletonData = skeletonBinary.readSkeletonData(assetManager.get("assets/" + name + ".skel"));
+	}
+
+	//Create a new skeleton.
 	var skeleton = new spine.Skeleton(skeletonData);
 	skeleton.setSkinByName(skin);
 	var bounds = calculateBounds(skeleton);
@@ -113,6 +134,8 @@ function loadSkeleton (name, initialAnimation, premultipliedAlpha, skin) {
 	// Create an AnimationState, and set the initial animation in looping mode.
 	animationStateData = new spine.AnimationStateData(skeleton.data);
 	var animationState = new spine.AnimationState(animationStateData);
+	if (!initialAnimation)
+	    initialAnimation = skeletonData.animations[0].name;
 	if (name == "spineboy") {
 		animationStateData.setMix("walk", "jump", 0.4)		
 		animationStateData.setMix("jump", "run", 0.4);
